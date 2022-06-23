@@ -2,9 +2,8 @@ const POST_URL = "WEBHOOK_URL";
 
 function onSubmit(e) {
     const response = e.response.getItemResponses();
-    let items = [];
 
-    let sectionsData = [{}];
+    let sectionsData = [];
 
     var test = e.source.getItems();
     var sectionIdxs = [];
@@ -73,17 +72,62 @@ function onSubmit(e) {
       }
     }
 
-    let embeds = [];
 
     for (const section of sectionsData) {
         if (section["sectionItems"].length == 0) continue;
-        embeds.push({
-          "title": section["sectionName"],
-          "color": 5606441, // This is optional, you can look for decimal colour codes at https://www.webtoolkitonline.com/hexadecimal-decimal-color-converter.html
-          "fields": section["sectionItems"]
-        })
-    }
+        let currentSectionCharacterNum = 0;
 
+        for (const item of section["sectionItems"]) {
+            currentSectionCharacterNum += item.name.length + item.value.length;
+        }
+
+        if (currentSectionCharacterNum >= 2000) {
+          Logger.log("Section too long : " + currentSectionCharacterNum + " -> sending multiple embeds");
+
+            let itemsLength = 0;
+            let items = [];
+            for (const item of section["sectionItems"]) {
+                let currentItemLength = item.name.length + item.value.length;
+              
+                if (itemsLength + currentItemLength >= 2000) {
+                    Logger.log("itemLength : " + (itemsLength + currentItemLength) + " -> send items")
+                    sendEmbed({
+                      "title": section["sectionName"],
+                      "color": 5606441, // This is optional, you can look for decimal colour codes at https://www.webtoolkitonline.com/hexadecimal-decimal-color-converter.html
+                      "fields": items
+                    });
+
+                    items = []
+                    itemsLength = currentItemLength;
+
+                    items.push(item)
+                } else {
+                    Logger.log("itemLength : " + itemsLength + " -> add item")
+                    itemsLength += currentItemLength;
+
+                    items.push(item)
+                }
+            }
+
+            sendEmbed({
+              "title": section["sectionName"],
+              "color": 5606441, // This is optional, you can look for decimal colour codes at https://www.webtoolkitonline.com/hexadecimal-decimal-color-converter.html
+              "fields": items
+            });
+            
+            currentSectionCharacterNum = 0;
+        } else {
+            sendEmbed({
+              "title": section["sectionName"],
+              "color": 5606441, // This is optional, you can look for decimal colour codes at https://www.webtoolkitonline.com/hexadecimal-decimal-color-converter.html
+              "fields": section["sectionItems"]
+            });
+            currentSectionCharacterNum = 0;
+        }
+    }
+};
+
+function sendEmbed(embed) {    
     const options = {
         "method": "post",
         "headers": {
@@ -91,9 +135,9 @@ function onSubmit(e) {
         },
         "payload": JSON.stringify({
             "content": "‌",
-            "embeds": embeds
+            "embeds": [embed]
         })
     };
 
     UrlFetchApp.fetch(POST_URL, options);
-};
+}
